@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBQ-Abstimmung · Benjamin Hehn</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a1a; color: #f0ece0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding: 0 0 60px; }
+  header { background: #111; border-bottom: 3px solid #c8a94a; padding: 28px 20px 22px; text-align: center; }
+  header h1 { font-size: clamp(1.4rem, 5vw, 2rem); font-weight: 800; color: #fff; }
+  header p { margin-top: 6px; color: #c8a94a; font-size: 0.9rem; font-weight: 500; }
+  .instruction { background: #252525; border-left: 4px solid #c8a94a; margin: 20px auto 0; max-width: 540px; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 0.85rem; color: #bbb; line-height: 1.5; }
+  .instruction strong { color: #f0ece0; }
+  .status-bar { max-width: 540px; margin: 12px auto 0; padding: 0 16px; }
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; background: #1e3a1e; border: 1px solid #2d5a2d; color: #6dbe6d; font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+  .dot-live { width: 6px; height: 6px; background: #4caf50; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .month-section { padding: 24px 16px 0; max-width: 540px; margin: 0 auto; }
+  .month-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #c8a94a; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #333; }
+  .event-card { background: #262626; border-radius: 12px; margin-bottom: 10px; overflow: hidden; border: 1px solid #333; transition: border-color 0.2s; }
+  .event-card.voted-yes { border-color: #4caf50; }
+  .event-card.voted-no  { border-color: #555; }
+  .event-header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px; }
+  .event-date { background: #1a1a1a; border-radius: 8px; padding: 6px 10px; text-align: center; min-width: 70px; flex-shrink: 0; }
+  .event-date .weekday { font-size: 0.65rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #c8a94a; }
+  .event-date .day { font-size: 1.3rem; font-weight: 800; color: #fff; line-height: 1.1; }
+  .event-date .month { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .event-info { flex: 1; min-width: 0; }
+  .event-name { font-size: 0.95rem; font-weight: 700; color: #f0ece0; line-height: 1.3; }
+  .event-meta { font-size: 0.75rem; color: #888; margin-top: 2px; }
+  .time-badge { display: inline-block; background: #c8a94a22; color: #c8a94a; border-radius: 4px; padding: 0 5px; font-weight: 600; margin-right: 4px; }
+  .name-prompt { padding: 14px 14px 0; }
+  .name-input { width: 100%; padding: 9px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #f0ece0; font-size: 0.85rem; outline: none; }
+  .name-input:focus { border-color: #c8a94a; }
+  .name-input::placeholder { color: #555; }
+  .vote-bar { display: flex; padding: 10px 14px 14px; gap: 8px; }
+  .btn-vote { flex: 1; padding: 10px 8px; border-radius: 8px; border: 2px solid transparent; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .btn-yes { background: #1e3a1e; border-color: #2d5a2d; color: #6dbe6d; }
+  .btn-yes:hover, .btn-yes.active { background: #4caf50; border-color: #4caf50; color: #fff; }
+  .btn-no { background: #2a2a2a; border-color: #3a3a3a; color: #777; }
+  .btn-no:hover, .btn-no.active { background: #555; border-color: #555; color: #ccc; }
+  .btn-maybe { background: #2a2318; border-color: #3d3420; color: #c8a94a; }
+  .btn-maybe:hover, .btn-maybe.active { background: #c8a94a; border-color: #c8a94a; color: #111; }
+  .btn-vote:disabled { opacity: 0.5; cursor: wait; }
+  .vote-count { font-size: 0.7rem; font-weight: 700; background: #ffffff18; border-radius: 20px; padding: 1px 6px; }
+  .results-wrap { padding: 0 14px 14px; }
+  .result-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 0.75rem; }
+  .result-label { width: 68px; color: #888; }
+  .result-bar-bg { flex: 1; height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+  .result-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+  .fill-yes { background: #4caf50; } .fill-maybe { background: #c8a94a; } .fill-no { background: #555; }
+  .result-num { width: 18px; text-align: right; color: #aaa; }
+  .voters-list { padding: 0 14px 12px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .voter-chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .chip-yes { background: #4caf5022; color: #4caf50; border: 1px solid #4caf5044; }
+  .chip-maybe { background: #c8a94a22; color: #c8a94a; border: 1px solid #c8a94a44; }
+  .chip-no { background: #55555522; color: #888; border: 1px solid #55555544; }
+  .summary-box { max-width: 540px; margin: 28px auto 0; padding: 0 16px; }
+  .summary-inner { background: #111; border-radius: 12px; padding: 18px; border: 1px solid #333; }
+  .summary-inner h3 { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: #c8a94a; margin-bottom: 14px; }
+  .summary-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #222; font-size: 0.82rem; color: #ccc; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-yes { color: #4caf50; font-weight: 700; font-size: 0.8rem; }
+  .share-section { max-width: 540px; margin: 20px auto 0; padding: 0 16px; text-align: center; }
+  .btn-share { width: 100%; padding: 14px; background: #25D366; color: #fff; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
+  .btn-share:hover { background: #1ebe5d; }
+  .btn-copy { width: 100%; margin-top: 10px; padding: 12px; background: transparent; color: #888; border: 1px solid #333; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-copy:hover { color: #ccc; border-color: #555; }
+  .loading { text-align: center; padding: 40px; color: #555; font-size: 0.9rem; }
+  .saving-toast { position: fixed; bottom: 20px; right: 20px; background: #c8a94a; color: #111; padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .saving-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔥 BBQ-Abstimmung</h1>
+  <p>Benjamin Hehn · Juli & August 2026</p>
+</header>
+
+<div class="instruction" style="margin-left:auto;margin-right:auto;">
+  <strong>So funktioniert's:</strong> Trag deinen Namen ein und stimme für jeden Termin ab — ✅ Dabei &nbsp;❓ Vielleicht &nbsp;❌ Nein. Alle sehen die Ergebnisse live.
+</div>
+
+<div class="status-bar">
+  <span class="status-pill"><span class="dot-live"></span> Gemeinsame Abstimmung · Ergebnisse für alle sichtbar</span>
+</div>
+
+<div id="app"><div class="loading">⏳ Lade Abstimmung…</div></div>
+
+<div class="summary-box">
+  <div class="summary-inner">
+    <h3>📊 Beliebteste Termine</h3>
+    <div id="summary-list"><div style="color:#555;font-size:0.82rem;">Noch keine Stimmen.</div></div>
+  </div>
+</div>
+
+<div class="share-section">
+  <button class="btn-share" onclick="shareWhatsApp()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    Per WhatsApp teilen
+  </button>
+  <button class="btn-copy" onclick="copyLink()">🔗 Link kopieren</button>
+</div>
+
+<div class="saving-toast" id="toast">💾 Gespeichert!</div>
+
+<script>
+// ─── KONFIGURATION ────────────────────────────────────────────────────────────
+const GITHUB_TOKEN = 'DEIN_TOKEN_HIER';       // ← deinen neuen Token hier einfügen
+const GITHUB_OWNER = 'DEIN_USERNAME_HIER';    // ← deinen GitHub-Benutzernamen hier einfügen
+const GITHUB_REPO  = 'bbq-abstimmung';
+const FILE_PATH    = 'votes.json';
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EVENTS = [
+  { id:'e1',  month:'JULI',   weekday:'Di', day:'28', mo:'Jul', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e2',  month:'JULI',   weekday:'Mi', day:'29', mo:'Jul', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e3',  month:'JULI',   weekday:'Do', day:'30', mo:'Jul', name:'Spareribs "all you can eat"', time:null,    price:'40 €' },
+  { id:'e4',  month:'AUGUST', weekday:'Sa', day:'01', mo:'Aug', name:'American Smoke Day "Buffet"', time:'18:00', price:'69 €' },
+  { id:'e5',  month:'AUGUST', weekday:'Fr', day:'07', mo:'Aug', name:'American BBQ "Buffet"',       time:'18:00', price:'62,50 €' },
+  { id:'e6',  month:'AUGUST', weekday:'Sa', day:'08', mo:'Aug', name:'Von ällem ebbes "Buffet"',    time:'18:00', price:'62,50 €' },
+  { id:'e7',  month:'AUGUST', weekday:'So', day:'09', mo:'Aug', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e8',  month:'AUGUST', weekday:'Fr', day:'14', mo:'Aug', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e9',  month:'AUGUST', weekday:'Sa', day:'15', mo:'Aug', name:'American BBQ "Buffet"',       time:'18:00', price:'62,50 €' },
+  { id:'e10', month:'AUGUST', weekday:'So', day:'16', mo:'Aug', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e11', month:'AUGUST', weekday:'Fr', day:'21', mo:'Aug', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e12', month:'AUGUST', weekday:'Sa', day:'22', mo:'Aug', name:'American BBQ "Buffet"',       time:'18:00', price:'62,50 €' },
+  { id:'e13', month:'AUGUST', weekday:'So', day:'23', mo:'Aug', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e14', month:'AUGUST', weekday:'Mi', day:'26', mo:'Aug', name:'Best of BBQ',                 time:null,    price:'40 €' },
+  { id:'e15', month:'AUGUST', weekday:'Do', day:'27', mo:'Aug', name:'Spareribs "all you can eat"', time:null,    price:'40 €' },
+];
+
+let sharedVotes = {};
+let fileSha = '';
+let myName = localStorage.getItem('bbq_myname') || '';
+let saving = false;
+
+const API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FILE_PATH}`;
+const HEADERS = {
+  'Authorization': `token ${GITHUB_TOKEN}`,
+  'Accept': 'application/vnd.github.v3+json',
+  'Content-Type': 'application/json'
+};
+
+async function loadVotes() {
+  try {
+    const res = await fetch(API, { headers: HEADERS });
+    const data = await res.json();
+    fileSha = data.sha;
+    sharedVotes = JSON.parse(atob(data.content.replace(/\n/g, '')));
+  } catch(e) {
+    sharedVotes = {};
+  }
+}
+
+async function saveVotes() {
+  if (saving) return;
+  saving = true;
+  showToast('💾 Speichern…');
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(sharedVotes, null, 2))));
+    const res = await fetch(API, {
+      method: 'PUT',
+      headers: HEADERS,
+      body: JSON.stringify({
+        message: `Vote update by ${myName}`,
+        content: content,
+        sha: fileSha
+      })
+    });
+    const data = await res.json();
+    fileSha = data.content.sha;
+    showToast('✅ Gespeichert!');
+  } catch(e) {
+    showToast('❌ Fehler beim Speichern');
+  }
+  saving = false;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+async function vote(id, v) {
+  const nameEl = document.getElementById('name_' + id);
+  const name = (nameEl?.value || '').trim();
+  if (!name) {
+    nameEl.style.borderColor = '#e53935';
+    nameEl.placeholder = 'Bitte Namen eingeben!';
+    setTimeout(() => { nameEl.style.borderColor = ''; nameEl.placeholder = 'Dein Name…'; }, 2000);
+    return;
+  }
+  myName = name;
+  localStorage.setItem('bbq_myname', name);
+  if (!sharedVotes[id]) sharedVotes[id] = {};
+  if (sharedVotes[id][name] === v) {
+    delete sharedVotes[id][name];
+  } else {
+    sharedVotes[id][name] = v;
+  }
+  render();
+  await saveVotes();
+}
+
+function getMyVote(id) {
+  if (!myName) return null;
+  return sharedVotes[id]?.[myName] || null;
+}
+
+function countVotes(id) {
+  const votes = sharedVotes[id] || {};
+  const c = { yes: 0, maybe: 0, no: 0 };
+  const names = { yes: [], maybe: [], no: [] };
+  Object.entries(votes).forEach(([n, v]) => {
+    if (c[v] !== undefined) { c[v]++; names[v].push(n); }
+  });
+  return { c, names };
+}
+
+function render() {
+  const app = document.getElementById('app');
+  let html = '';
+  ['JULI','AUGUST'].forEach(month => {
+    const events = EVENTS.filter(e => e.month === month);
+    html += `<div style="max-width:540px;margin:0 auto;"><div class="month-section"><div class="month-label">${month}</div>`;
+    events.forEach(ev => {
+      const myVote = getMyVote(ev.id);
+      const { c, names } = countVotes(ev.id);
+      const total = c.yes + c.maybe + c.no;
+      const pct = n => total > 0 ? Math.round((n/total)*100) : 0;
+      const chips = [
+        ...names.yes.map(n => `<span class="voter-chip chip-yes">✅ ${escHtml(n)}</span>`),
+        ...names.maybe.map(n => `<span class="voter-chip chip-maybe">❓ ${escHtml(n)}</span>`),
+        ...names.no.map(n => `<span class="voter-chip chip-no">❌ ${escHtml(n)}</span>`),
+      ].join('');
+
+      html += `
+        <div class="event-card ${myVote==='yes'?'voted-yes':myVote==='no'?'voted-no':''}">
+          <div class="name-prompt">
+            <input class="name-input" id="name_${ev.id}" type="text" placeholder="Dein Name…"
+              value="${escHtml(myName)}" oninput="updateNames(this.value)">
+          </div>
+          <div class="event-header">
+            <div class="event-date">
+              <div class="weekday">${ev.weekday}</div>
+              <div class="day">${ev.day}</div>
+              <div class="month">${ev.mo}</div>
+            </div>
+            <div class="event-info">
+              <div class="event-name">${ev.name}</div>
+              <div class="event-meta">${ev.time?`<span class="time-badge">${ev.time}</span>`:''}${ev.price} pro Person</div>
+            </div>
+          </div>
+          <div class="vote-bar">
+            <button class="btn-vote btn-yes ${myVote==='yes'?'active':''}" onclick="vote('${ev.id}','yes')">✅ Dabei <span class="vote-count">${c.yes}</span></button>
+            <button class="btn-vote btn-maybe ${myVote==='maybe'?'active':''}" onclick="vote('${ev.id}','maybe')">❓ Vllt. <span class="vote-count">${c.maybe}</span></button>
+            <button class="btn-vote btn-no ${myVote==='no'?'active':''}" onclick="vote('${ev.id}','no')">❌ Nein <span class="vote-count">${c.no}</span></button>
+          </div>
+          ${total > 0 ? `
+          <div class="results-wrap">
+            <div class="result-row"><span class="result-label" style="color:#4caf50">Dabei</span><div class="result-bar-bg"><div class="result-bar-fill fill-yes" style="width:${pct(c.yes)}%"></div></div><span class="result-num">${c.yes}</span></div>
+            <div class="result-row"><span class="result-label" style="color:#c8a94a">Vielleicht</span><div class="result-bar-bg"><div class="result-bar-fill fill-maybe" style="width:${pct(c.maybe)}%"></div></div><span class="result-num">${c.maybe}</span></div>
+            <div class="result-row"><span class="result-label" style="color:#666">Nein</span><div class="result-bar-bg"><div class="result-bar-fill fill-no" style="width:${pct(c.no)}%"></div></div><span class="result-num">${c.no}</span></div>
+          </div>
+          <div class="voters-list">${chips}</div>` : ''}
+        </div>`;
+    });
+    html += `</div></div><div style="height:4px"></div>`;
+  });
+  app.innerHTML = html;
+  renderSummary();
+}
+
+function renderSummary() {
+  const ranked = EVENTS.map(e => {
+    const { c } = countVotes(e.id);
+    return { e, yes: c.yes, maybe: c.maybe };
+  }).filter(x => x.yes > 0 || x.maybe > 0)
+    .sort((a,b) => (b.yes*2+b.maybe)-(a.yes*2+a.maybe))
+    .slice(0,5);
+  const sl = document.getElementById('summary-list');
+  if (!ranked.length) { sl.innerHTML = '<div style="color:#555;font-size:0.82rem;">Noch keine Stimmen.</div>'; return; }
+  sl.innerHTML = ranked.map(({e,yes,maybe}) => `
+    <div class="summary-row">
+      <span>${e.weekday} ${e.day}. ${e.mo} – ${e.name}</span>
+      <span class="summary-yes">${yes>0?`✅ ${yes}`:''}${maybe>0?` ❓${maybe}`:''}</span>
+    </div>`).join('');
+}
+
+function updateNames(val) {
+  myName = val;
+  localStorage.setItem('bbq_myname', val);
+  document.querySelectorAll('.name-input').forEach(el => { if(el.value !== val) el.value = val; });
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function shareWhatsApp() {
+  const url = window.location.href;
+  const text = `🔥 *BBQ-Abstimmung Juli & August 2026*\n\nHey! Ich plane BBQ-Abende bei Benjamin Hehn. Wer ist wann dabei?\n\n👉 Hier abstimmen:\n${url}\n\nNamen eingeben und für jeden Termin abstimmen! 🍖`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = '✅ Link kopiert!';
+    setTimeout(() => btn.textContent = '🔗 Link kopieren', 2000);
+  });
+}
+
+// Init + auto-refresh alle 30 Sekunden
+(async () => {
+  await loadVotes();
+  render();
+  setInterval(async () => { await loadVotes(); render(); }, 30000);
+})();
+</script>
+</body>
+</html>
